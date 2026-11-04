@@ -1,0 +1,29 @@
+{{define "content"}}
+{{$p := .Data}}
+<div class="page-head">
+  <div>
+    <p class="crumbs small"><a href="/dashboard">Dashboard</a> / <a href="/boards/{{$p.Board.ID}}">{{$p.Board.Name}}</a> /</p>
+    <h1>Activity log</h1>
+    <p class="muted">The latest {{len $p.Items}} actions on this board, newest first. Entries are permanent and include deleted tasks.</p>
+  </div>
+  <a class="btn" href="/boards/{{$p.Board.ID}}">Back to board</a>
+</div>
+<section class="panel">
+  <ol class="timeline">
+    {{range $p.Items}}
+    <li class="tl-item tl-{{.Action}}">
+      <span class="tl-icon" aria-hidden="true">{{activityIcon .Action}}</span>
+      <div class="tl-body">
+        <p><strong>{{.UserName}}</strong> {{.Description}}</p>
+        <p class="small muted">
+          on {{if .TaskID.Valid}}<a href="/tasks/{{.TaskID.Int64}}">{{.TaskTitle}}</a>{{else}}<s>{{.TaskTitle}}</s> (deleted){{end}}
+          · {{template "time" .CreatedAt}}
+        </p>
+      </div>
+    </li>
+    {{else}}
+    <li class="empty">Nothing has happened on this board yet.</li>
+    {{end}}
+  </ol>
+</section>
+{{end}}

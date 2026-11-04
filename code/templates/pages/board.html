@@ -1,0 +1,131 @@
+{{define "content"}}
+{{$p := .Data}}
+{{$root := .}}
+<div class="board-head">
+  <div class="board-title">
+    <p class="crumbs small"><a href="/dashboard">Dashboard</a> / </p>
+    <h1>{{$p.Board.Name}}</h1>
+    {{if $p.Board.Description}}<p class="muted">{{$p.Board.Description}}</p>{{end}}
+  </div>
+  <div class="board-actions">
+    <div class="member-stack" aria-label="Board members">
+      {{range $p.Members}}<span title="{{.Name}} ({{.Role.Label}})">{{template "avatar" .Name}}</span>{{end}}
+    </div>
+    <a class="btn" href="/boards/{{$p.Board.ID}}/activity">Activity log</a>
+    <a class="btn" href="/boards/{{$p.Board.ID}}/settings">{{if atLeast $p.Role "admin"}}Settings &amp; members{{else}}Members &amp; labels{{end}}</a>
+  </div>
+</div>
+
+<details class="filters" {{if $p.FilterActive}}open{{end}}>
+  <summary>Search, filter &amp; sort{{if $p.FilterActive}} <span class="badge">on</span>{{end}}</summary>
+  <form method="get" action="/boards/{{$p.Board.ID}}" class="filter-form">
+    <label class="grow">Search titles
+      <input type="search" name="q" value="{{$p.Filter.Query}}" placeholder="Search tasks…">
+    </label>
+    <label>Status
+      <select name="column">
+        <option value="">All columns</option>
+        {{range $p.AllColumns}}<option value="{{.ID}}" {{if eq .ID $p.Filter.ColumnID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Priority
+      <select name="priority">
+        <option value="">Any</option>
+        {{range priorities}}<option value="{{.}}" {{if eq (print .) $p.Filter.Priority}}selected{{end}}>{{.Label}}</option>{{end}}
+      </select>
+    </label>
+    <label>Assignee
+      <select name="assignee">
+        <option value="">Anyone</option>
+        <option value="-1" {{if eq $p.Filter.AssigneeID -1}}selected{{end}}>Unassigned</option>
+        {{range $p.Members}}<option value="{{.UserID}}" {{if eq .UserID $p.Filter.AssigneeID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    <label>Posted by
+      <select name="creator">
+        <option value="">Anyone</option>
+        {{range $p.Members}}<option value="{{.UserID}}" {{if eq .UserID $p.Filter.CreatorID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    {{if $p.Labels}}
+    <label>Label
+      <select name="label">
+        <option value="">Any</option>
+        {{range $p.Labels}}<option value="{{.ID}}" {{if eq .ID $p.Filter.LabelID}}selected{{end}}>{{.Name}}</option>{{end}}
+      </select>
+    </label>
+    {{end}}
+    <label>Due
+      <select name="due">
+        <option value="">Any time</option>
+        <option value="overdue" {{if eq $p.Filter.Due "overdue"}}selected{{end}}>Overdue</option>
+        <option value="today" {{if eq $p.Filter.Due "today"}}selected{{end}}>Due today</option>
+        <option value="week" {{if eq $p.Filter.Due "week"}}selected{{end}}>Due within 7 days</option>
+        <option value="none" {{if eq $p.Filter.Due "none"}}selected{{end}}>No due date</option>
+      </select>
+    </label>
+    <label>Sort by
+      <select name="sort">
+        <option value="">Board order</option>
+        <option value="created" {{if eq $p.Filter.Sort "created"}}selected{{end}}>Newest first</option>
+        <option value="due" {{if eq $p.Filter.Sort "due"}}selected{{end}}>Due date</option>
+        <option value="priority" {{if eq $p.Filter.Sort "priority"}}selected{{end}}>Priority</option>
+      </select>
+    </label>
+    <div class="filter-buttons">
+      <button type="submit" class="btn btn-primary">Apply</button>
+      {{if $p.FilterActive}}<a class="btn btn-ghost" href="/boards/{{$p.Board.ID}}">Clear</a>{{end}}
+    </div>
+  </form>
+  {{if $p.FilterActive}}
+  <p class="muted small filter-note">Showing {{plural $p.Shown "matching task"}}. Drag-and-drop is turned off while filters or sorting are active — clear them to rearrange cards, or use the “Move” controls inside a task.</p>
+  {{end}}
+</details>
+
+<div class="board" {{if $p.DragEnabled}}data-dnd{{end}} data-board-id="{{$p.Board.ID}}">
+  {{range $p.Columns}}
+  {{$col := .}}
+  <section class="column{{if .IsDone}} column-done{{end}}" aria-labelledby="col-{{.ID}}">
+    <header class="column-head">
+      <h2 id="col-{{.ID}}">{{.Name}}{{if .IsDone}} <span class="done-flag" title="Tasks here count as completed">✓</span>{{end}}</h2>
+      <span class="count" aria-label="{{len .Tasks}} tasks">{{len .Tasks}}</span>
+    </header>
+    <ol class="cards" data-column-id="{{.ID}}" aria-label="Tasks in {{.Name}}">
+      {{range .Tasks}}{{template "task_card" (dict "Task" . "URL" ($p.TaskURL .ID) "Drag" $p.DragEnabled)}}{{end}}
+    </ol>
+    {{if not .Tasks}}<p class="column-empty small muted">{{if $p.FilterActive}}No matching tasks{{else}}No tasks yet{{end}}</p>{{end}}
+    <details class="quick-add">
+      <summary>+ Add a task</summary>
+      <form method="post" action="/boards/{{$p.Board.ID}}/tasks" class="stack">
+        {{template "csrf" $root}}
+        <input type="hidden" name="column_id" value="{{.ID}}">
+        <label class="sr-only" for="new-title-{{.ID}}">Task title</label>
+        <input id="new-title-{{.ID}}" type="text" name="title" required maxlength="200" placeholder="What needs to be done?">
+        <div class="row">
+          <label class="sr-only" for="new-prio-{{.ID}}">Priority</label>
+          <select id="new-prio-{{.ID}}" name="priority">
+            {{range priorities}}<option value="{{.}}" {{if eq (print .) "medium"}}selected{{end}}>{{.Label}}</option>{{end}}
+          </select>
+          <label class="sr-only" for="new-assignee-{{.ID}}">Assignee</label>
+          <select id="new-assignee-{{.ID}}" name="assignee_id">
+            <option value="">Unassigned</option>
+            {{range $p.Members}}<option value="{{.UserID}}">{{.Name}}</option>{{end}}
+          </select>
+        </div>
+        <label class="small">Due date <span class="hint">(optional)</span>
+          <input type="date" name="due_date">
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm">Add task</button>
+      </form>
+    </details>
+  </section>
+  {{else}}
+  <div class="empty-state panel">
+    <h2>This board has no columns</h2>
+    <p class="muted">Add a column from the board settings.</p>
+  </div>
+  {{end}}
+</div>
+
+{{with $p.Selected}}{{template "task_panel" (dict "D" . "P" $p "Root" $root)}}{{end}}
+{{end}}

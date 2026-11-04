@@ -196,3 +196,13 @@ func Chain(h http.Handler, mws ...func(http.Handler) http.Handler) http.Handler 
 	}
 	return h
 }
+
+// LimitBody caps request bodies so oversized form posts cannot exhaust memory.
+func LimitBody(max int64) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, max)
+			next.ServeHTTP(w, r)
+		})
+	}
+}

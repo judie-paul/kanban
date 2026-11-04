@@ -1,0 +1,195 @@
+{{define "content"}}
+{{$p := .Data}}{{$root := .}}
+{{$admin := atLeast $p.Role "admin"}}{{$owner := atLeast $p.Role "owner"}}
+<div class="page-head">
+  <div>
+    <p class="crumbs small"><a href="/dashboard">Dashboard</a> / <a href="/boards/{{$p.Board.ID}}">{{$p.Board.Name}}</a> /</p>
+    <h1>Board settings</h1>
+    <p class="muted">Your role on this board: <span class="role role-{{$p.Role}}">{{$p.Role.Label}}</span>
+      {{if not $admin}} — only owners and admins can change board details and columns.{{end}}</p>
+  </div>
+  <a class="btn" href="/boards/{{$p.Board.ID}}">Back to board</a>
+</div>
+
+<div class="grid-2">
+  <div class="stack">
+    {{if $admin}}
+    <section class="panel">
+      <h2>Board details</h2>
+      <form method="post" action="/boards/{{$p.Board.ID}}/update" class="stack">
+        {{template "csrf" $root}}
+        <label>Name <input type="text" name="name" value="{{$p.Board.Name}}" required maxlength="100"></label>
+        <label>Description <textarea name="description" rows="3" maxlength="2000">{{$p.Board.Description}}</textarea></label>
+        <button type="submit" class="btn btn-primary">Save details</button>
+      </form>
+    </section>
+    {{end}}
+
+    <section class="panel" id="members">
+      <h2>Members <span class="muted">({{len $p.Members}})</span></h2>
+      <ul class="member-list">
+        {{range $p.Members}}
+        <li>
+          {{template "avatar" .Name}}
+          <div class="member-info">
+            <strong>{{.Name}}</strong>{{if eq .UserID $root.User.ID}} <span class="muted small">(you)</span>{{end}}
+            <span class="muted small">{{.Email}}</span>
+          </div>
+          {{if and $owner (ne .Role "owner")}}
+          <form method="post" action="/boards/{{$p.Board.ID}}/members/{{.UserID}}/role" class="inline row">
+            {{template "csrf" $root}}
+            <label class="sr-only" for="role-{{.UserID}}">Role for {{.Name}}</label>
+            <select id="role-{{.UserID}}" name="role" data-autosubmit>
+              <option value="member" {{if eq .Role "member"}}selected{{end}}>Member</option>
+              <option value="admin" {{if eq .Role "admin"}}selected{{end}}>Admin</option>
+            </select>
+            <noscript><button type="submit" class="btn btn-sm">Save</button></noscript>
+          </form>
+          <form method="post" action="/boards/{{$p.Board.ID}}/members/{{.UserID}}/remove" class="inline"
+                data-confirm="Remove {{.Name}} from this board? Tasks assigned to them will become unassigned.">
+            {{template "csrf" $root}}
+            <button type="submit" class="btn btn-sm btn-ghost text-danger">Remove</button>
+          </form>
+          {{else}}
+          <span class="role role-{{.Role}}">{{.Role.Label}}</span>
+          {{end}}
+        </li>
+        {{end}}
+      </ul>
+      {{if $owner}}
+      <form method="post" action="/boards/{{$p.Board.ID}}/members" class="stack add-member">
+        {{template "csrf" $root}}
+        <h3>Add a member</h3>
+        <p class="muted small">They need to have registered an account first.</p>
+        <div class="row wrap">
+          <label class="grow">Email address <input type="email" name="email" required placeholder="teammate@example.com"></label>
+          <label>Role
+            <select name="role">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary">Add member</button>
+      </form>
+      <details class="help small">
+        <summary>What can each role do?</summary>
+        <ul>
+          <li><strong>Owner</strong> – everything, including deleting the board and managing members.</li>
+          <li><strong>Admin</strong> – edit board details, manage columns and labels, moderate comments, delete any task.</li>
+          <li><strong>Member</strong> – create, edit, move, assign and comment on tasks; delete tasks they posted.</li>
+        </ul>
+      </details>
+      {{end}}
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="panel" id="columns">
+      <h2>Columns</h2>
+      <p class="muted small">Tasks moved into a column marked “done” count as completed.</p>
+      <ol class="column-list">
+        {{range $i, $c := $p.Columns}}
+        <li>
+          {{if $admin}}
+          <form method="post" action="/boards/{{$p.Board.ID}}/columns/{{$c.ID}}/update" class="row wrap col-edit">
+            {{template "csrf" $root}}
+            <label class="sr-only" for="colname-{{$c.ID}}">Column name</label>
+            <input id="colname-{{$c.ID}}" type="text" name="name" value="{{$c.Name}}" required maxlength="50">
+            <label class="check small"><input type="checkbox" name="is_done" {{if $c.IsDone}}checked{{end}}> done</label>
+            <button type="submit" class="btn btn-sm">Save</button>
+          </form>
+          <div class="row wrap col-tools">
+            <span class="muted small">{{plural (index $p.Counts $c.ID) "task"}}</span>
+            <form method="post" action="/boards/{{$p.Board.ID}}/columns/{{$c.ID}}/reorder" class="inline">
+              {{template "csrf" $root}}<input type="hidden" name="direction" value="left">
+              <button type="submit" class="btn btn-sm btn-ghost" {{if eq $i 0}}disabled{{end}} aria-label="Move {{$c.Name}} left">← Left</button>
+            </form>
+            <form method="post" action="/boards/{{$p.Board.ID}}/columns/{{$c.ID}}/reorder" class="inline">
+              {{template "csrf" $root}}<input type="hidden" name="direction" value="right">
+              <button type="submit" class="btn btn-sm btn-ghost" {{if eq (add $i 1) (len $p.Columns)}}disabled{{end}} aria-label="Move {{$c.Name}} right">Right →</button>
+            </form>
+            {{if gt (len $p.Columns) 1}}
+            <form method="post" action="/boards/{{$p.Board.ID}}/columns/{{$c.ID}}/delete" class="inline row"
+                  data-confirm="Delete the column “{{$c.Name}}”?{{if index $p.Counts $c.ID}} Its tasks will be moved to the column you selected, and each move will be recorded.{{end}}">
+              {{template "csrf" $root}}
+              {{if index $p.Counts $c.ID}}
+              <label class="small" for="moveto-{{$c.ID}}">move tasks to</label>
+              <select id="moveto-{{$c.ID}}" name="move_to" required>
+                {{range $p.Columns}}{{if ne .ID $c.ID}}<option value="{{.ID}}">{{.Name}}</option>{{end}}{{end}}
+              </select>
+              {{end}}
+              <button type="submit" class="btn btn-sm btn-ghost text-danger">Delete</button>
+            </form>
+            {{end}}
+          </div>
+          {{else}}
+          <span>{{$c.Name}}{{if $c.IsDone}} <span class="done-flag">✓ done</span>{{end}}</span>
+          <span class="muted small">{{plural (index $p.Counts $c.ID) "task"}}</span>
+          {{end}}
+        </li>
+        {{end}}
+      </ol>
+      {{if $admin}}
+      <form method="post" action="/boards/{{$p.Board.ID}}/columns" class="row wrap add-column">
+        {{template "csrf" $root}}
+        <label class="grow">New column <input type="text" name="name" required maxlength="50" placeholder="e.g. Testing"></label>
+        <label class="check small"><input type="checkbox" name="is_done"> done column</label>
+        <button type="submit" class="btn btn-primary">Add column</button>
+      </form>
+      {{end}}
+    </section>
+
+    <section class="panel" id="labels">
+      <h2>Labels</h2>
+      {{if $p.Labels}}
+      <ul class="label-list">
+        {{range $p.Labels}}
+        <li>
+          {{template "label" .}}
+          {{if $admin}}
+          <form method="post" action="/boards/{{$p.Board.ID}}/labels/{{.ID}}/delete" class="inline"
+                data-confirm="Delete the label “{{.Name}}”? It will be removed from all tasks.">
+            {{template "csrf" $root}}
+            <button type="submit" class="btn-link small text-danger" aria-label="Delete label {{.Name}}">Delete</button>
+          </form>
+          {{end}}
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <p class="muted small">No labels yet. Labels help group tasks, e.g. “bug”, “design” or “customer”.</p>
+      {{end}}
+      <form method="post" action="/boards/{{$p.Board.ID}}/labels" class="row wrap">
+        {{template "csrf" $root}}
+        <label class="grow">Label name <input type="text" name="name" required maxlength="30"></label>
+        <label>Colour
+          <select name="color">{{range labelColors}}<option value="{{.}}">{{.}}</option>{{end}}</select>
+        </label>
+        <button type="submit" class="btn">Add label</button>
+      </form>
+    </section>
+
+    <section class="panel danger-zone">
+      <h2>Danger zone</h2>
+      {{if $owner}}
+      <form method="post" action="/boards/{{$p.Board.ID}}/delete" class="stack"
+            data-confirm="Permanently delete “{{$p.Board.Name}}” with all its tasks, comments and history?">
+        {{template "csrf" $root}}
+        <p class="small">Deleting the board permanently removes all of its tasks, comments and activity history. This cannot be undone.</p>
+        <label>Type <strong>{{$p.Board.Name}}</strong> to confirm
+          <input type="text" name="confirm_name" required autocomplete="off">
+        </label>
+        <button type="submit" class="btn btn-danger">Delete board</button>
+      </form>
+      {{else}}
+      <form method="post" action="/boards/{{$p.Board.ID}}/leave" data-confirm="Leave this board? Tasks assigned to you will become unassigned.">
+        {{template "csrf" $root}}
+        <p class="small">Leave this board. You will lose access until the owner adds you again.</p>
+        <button type="submit" class="btn btn-danger">Leave board</button>
+      </form>
+      {{end}}
+    </section>
+  </div>
+</div>
+{{end}}

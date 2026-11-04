@@ -1,0 +1,116 @@
+{{define "content"}}
+{{$d := .Data}}
+<div class="page-head">
+  <div>
+    <h1>Hello, {{.User.Name}}</h1>
+    <p class="muted">Here's what's happening across your boards.</p>
+  </div>
+</div>
+
+<section class="stat-row" aria-label="Summary">
+  <div class="stat"><span class="stat-num">{{len $d.Boards}}</span><span class="stat-label">Boards</span></div>
+  <div class="stat"><span class="stat-num">{{$d.Totals.Tasks}}</span><span class="stat-label">Tasks</span></div>
+  <div class="stat"><span class="stat-num">{{$d.Totals.Completed}}</span><span class="stat-label">Completed</span></div>
+  <div class="stat{{if $d.Totals.Overdue}} stat-warn{{end}}"><span class="stat-num">{{$d.Totals.Overdue}}</span><span class="stat-label">Overdue</span></div>
+  <div class="stat"><span class="stat-num">{{len $d.Assigned}}</span><span class="stat-label">Assigned to you</span></div>
+</section>
+
+<div class="dash-grid">
+  <div class="stack">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Your boards</h2>
+      </div>
+      {{if $d.Boards}}
+      <ul class="board-list">
+        {{range $d.Boards}}
+        <li class="board-item">
+          <a href="/boards/{{.ID}}" class="board-link">
+            <div class="board-item-head">
+              <h3>{{.Name}}</h3>
+              <span class="role role-{{.Role}}">{{.Role.Label}}</span>
+            </div>
+            {{if .Description}}<p class="muted small clamp">{{.Description}}</p>{{end}}
+            <div class="board-stats small">
+              <span>{{plural .TaskCount "task"}}</span>
+              <span>✓ {{.CompletedCount}} completed</span>
+              <span class="{{if .OverdueCount}}text-danger{{end}}">⚠ {{.OverdueCount}} overdue</span>
+              <span>👥 {{plural .MemberCount "member"}}</span>
+            </div>
+            <progress max="100" value="{{pct .CompletedCount .TaskCount}}" aria-label="{{pct .CompletedCount .TaskCount}}% complete"></progress>
+            <p class="muted small">Owner: {{.OwnerName}} · updated {{template "time" .UpdatedAt}}</p>
+          </a>
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <div class="empty-state">
+        <p class="empty-icon" aria-hidden="true">🗂️</p>
+        <h3>No boards yet</h3>
+        <p class="muted">Create your first board below. You'll get the standard columns — Backlog, To Do, In Progress, Review and Done — and can invite teammates from its settings.</p>
+      </div>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>Create a board</h2>
+      <form method="post" action="/boards" class="stack">
+        {{template "csrf" .}}
+        <label>Board name
+          <input type="text" name="name" required maxlength="100" placeholder="e.g. Website relaunch">
+        </label>
+        <label>Description <span class="hint">(optional)</span>
+          <textarea name="description" rows="2" maxlength="2000" placeholder="What is this board for?"></textarea>
+        </label>
+        <button type="submit" class="btn btn-primary">Create board</button>
+      </form>
+    </section>
+  </div>
+
+  <div class="stack">
+    {{if $d.Notifications}}
+    <section class="panel">
+      <div class="panel-head">
+        <h2>New notifications</h2>
+        <a href="/notifications" class="small">See all</a>
+      </div>
+      <ul class="mini-notifs">
+        {{range $d.Notifications}}
+        <li><strong>{{.ActorName}}</strong> {{.Message}} <span class="muted small">· {{template "time" .CreatedAt}}</span></li>
+        {{end}}
+      </ul>
+    </section>
+    {{end}}
+
+    <section class="panel">
+      <h2>Assigned to you</h2>
+      {{if $d.Assigned}}
+      <ul class="task-rows">{{range $d.Assigned}}{{template "task_row" .}}{{end}}</ul>
+      {{else}}
+      <p class="empty small">Nothing assigned to you right now. 🎉</p>
+      {{end}}
+    </section>
+
+    <section class="panel">
+      <h2>Recently updated</h2>
+      {{if $d.Recent}}
+      <ul class="task-rows">
+        {{range $d.Recent}}
+        <li class="task-row">
+          <a href="/tasks/{{.ID}}">
+            <span class="task-row-main">
+              <strong>{{.Title}}</strong>
+              <span class="muted small">{{.BoardName}} · {{.ColumnName}} · posted by {{.CreatorName}}</span>
+            </span>
+            <span class="task-row-side muted small">{{template "time" .UpdatedAt}}</span>
+          </a>
+        </li>
+        {{end}}
+      </ul>
+      {{else}}
+      <p class="empty small">No task activity yet.</p>
+      {{end}}
+    </section>
+  </div>
+</div>
+{{end}}

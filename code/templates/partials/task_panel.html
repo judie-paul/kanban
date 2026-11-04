@@ -1,0 +1,179 @@
+{{/* Task details side panel. Expects dict "D" (taskDetail), "P" (boardPage), "Root" (pageData). */}}
+{{define "task_panel"}}
+{{$d := .D}}{{$t := $d.Task}}{{$p := .P}}{{$root := .Root}}
+{{$back := $p.TaskURL $t.ID}}
+<div class="panel-backdrop" data-close-panel="{{$p.CloseURL}}"></div>
+<aside class="task-panel" role="dialog" aria-modal="true" aria-labelledby="task-title" data-close-url="{{$p.CloseURL}}">
+  <header class="task-panel-head">
+    <div>
+      <p class="muted small">Task #{{$t.ID}} in <strong>{{$t.ColumnName}}</strong></p>
+      <h2 id="task-title">{{$t.Title}}</h2>
+    </div>
+    <a class="close-btn" href="{{$p.CloseURL}}" aria-label="Close task details">×</a>
+  </header>
+
+  <div class="task-panel-body">
+    <section class="ownership" aria-label="Ownership and status">
+      <dl>
+        <div class="own-row own-creator">
+          <dt>Posted by</dt>
+          <dd>{{template "person" $t.CreatorName}} <span class="muted small">on {{template "time" $t.CreatedAt}}</span></dd>
+        </div>
+        <div class="own-row">
+          <dt>Assigned to</dt>
+          <dd>{{if $t.AssigneeName}}{{template "person" $t.AssigneeName}}{{else}}<span class="muted">Nobody yet</span>{{end}}</dd>
+        </div>
+        <div class="own-row"><dt>Priority</dt><dd>{{template "priority" $t.Priority}}</dd></div>
+        <div class="own-row"><dt>Status</dt><dd>{{$t.ColumnName}}{{if $t.ColumnIsDone}} <span class="done-tick">✓ Completed {{template "time" $t.CompletedAt}}</span>{{end}}</dd></div>
+        <div class="own-row"><dt>Due date</dt><dd>{{if $t.DueDate}}{{template "due" $t}}{{else}}<span class="muted">None</span>{{end}}</dd></div>
+        <div class="own-row"><dt>Last updated</dt><dd>{{template "time" $t.UpdatedAt}}</dd></div>
+        {{if $t.Labels}}<div class="own-row"><dt>Labels</dt><dd class="labels">{{range $t.Labels}}{{template "label" .}}{{end}}</dd></div>{{end}}
+      </dl>
+    </section>
+
+    <section>
+      <h3>Description</h3>
+      {{if $t.Description}}<div class="description">{{$t.Description}}</div>{{else}}<p class="muted small">No description. Use “Edit task” to add one.</p>{{end}}
+    </section>
+
+    <section class="move-box" aria-label="Move task">
+      <h3>Move</h3>
+      <form method="post" action="/tasks/{{$t.ID}}/move" class="row wrap">
+        {{template "csrf" $root}}
+        <input type="hidden" name="return_to" value="{{$back}}">
+        <label class="sr-only" for="move-col">Column</label>
+        <select id="move-col" name="column_id">
+          {{range $p.AllColumns}}<option value="{{.ID}}" {{if eq .ID $t.ColumnID}}selected{{end}}>{{.Name}}</option>{{end}}
+        </select>
+        <label class="sr-only" for="move-pos">Position</label>
+        <select id="move-pos" name="position">
+          <option value="0">at the top</option>
+          <option value="1000000" selected>at the bottom</option>
+        </select>
+        <button type="submit" class="btn btn-sm">Move</button>
+      </form>
+      <div class="row">
+        <form method="post" action="/tasks/{{$t.ID}}/move" class="inline">
+          {{template "csrf" $root}}
+          <input type="hidden" name="return_to" value="{{$back}}">
+          <input type="hidden" name="column_id" value="{{$t.ColumnID}}">
+          <input type="hidden" name="position" value="{{sub $t.Position 1}}">
+          <button type="submit" class="btn btn-sm btn-ghost" {{if eq $t.Position 0}}disabled{{end}}>↑ Move up</button>
+        </form>
+        <form method="post" action="/tasks/{{$t.ID}}/move" class="inline">
+          {{template "csrf" $root}}
+          <input type="hidden" name="return_to" value="{{$back}}">
+          <input type="hidden" name="column_id" value="{{$t.ColumnID}}">
+          <input type="hidden" name="position" value="{{add $t.Position 1}}">
+          <button type="submit" class="btn btn-sm btn-ghost" {{if ge (add $t.Position 1) $d.ColumnLen}}disabled{{end}}>↓ Move down</button>
+        </form>
+        <span class="muted small">Position {{add $t.Position 1}} of {{$d.ColumnLen}}</span>
+      </div>
+    </section>
+
+    <details class="edit-box">
+      <summary class="btn btn-sm">✎ Edit task</summary>
+      <form method="post" action="/tasks/{{$t.ID}}/update" class="stack">
+        {{template "csrf" $root}}
+        <input type="hidden" name="return_to" value="{{$back}}">
+        <label>Title
+          <input type="text" name="title" value="{{$t.Title}}" required maxlength="200">
+        </label>
+        <label>Description
+          <textarea name="description" rows="5" maxlength="10000">{{$t.Description}}</textarea>
+        </label>
+        <div class="grid-2 tight">
+          <label>Priority
+            <select name="priority">
+              {{range priorities}}<option value="{{.}}" {{if eq . $t.Priority}}selected{{end}}>{{.Label}}</option>{{end}}
+            </select>
+          </label>
+          <label>Due date
+            <input type="date" name="due_date" value="{{$t.DueDate}}">
+          </label>
+        </div>
+        <label>Assignee
+          <select name="assignee_id">
+            <option value="">Unassigned</option>
+            {{range $p.Members}}<option value="{{.UserID}}" {{if eq .UserID $t.AssigneeID}}selected{{end}}>{{.Name}}</option>{{end}}
+          </select>
+        </label>
+        {{if $p.Labels}}
+        <fieldset class="label-picker">
+          <legend>Labels</legend>
+          {{range $p.Labels}}
+          <label class="check"><input type="checkbox" name="labels" value="{{.ID}}" {{if $t.HasLabel .ID}}checked{{end}}> {{template "label" .}}</label>
+          {{end}}
+        </fieldset>
+        {{else}}
+        <p class="muted small">No labels yet. Create some in <a href="/boards/{{$p.Board.ID}}/settings#labels">board settings</a>.</p>
+        {{end}}
+        <p class="muted small">The person who posted this task ({{$t.CreatorName}}) never changes. Your changes will be recorded in the history under your name.</p>
+        <div class="row">
+          <button type="submit" class="btn btn-primary">Save changes</button>
+        </div>
+      </form>
+    </details>
+
+    <section id="comments">
+      <h3>Comments <span class="muted">({{len $d.Comments}})</span></h3>
+      <ul class="comments">
+        {{range $d.Comments}}
+        <li class="comment">
+          {{template "avatar" .AuthorName}}
+          <div class="comment-body">
+            <p class="comment-meta"><strong>{{.AuthorName}}</strong> <span class="muted small">{{template "time" .CreatedAt}}{{if .Edited}} · edited{{end}}</span></p>
+            <div class="comment-text">{{.Content}}</div>
+            <div class="comment-actions">
+              {{if eq .AuthorID $root.User.ID}}
+              <details>
+                <summary class="btn-link small">Edit</summary>
+                <form method="post" action="/comments/{{.ID}}/update" class="stack">
+                  {{template "csrf" $root}}
+                  <input type="hidden" name="return_to" value="{{$back}}">
+                  <label class="sr-only" for="edit-comment-{{.ID}}">Edit comment</label>
+                  <textarea id="edit-comment-{{.ID}}" name="content" rows="3" required maxlength="5000">{{.Content}}</textarea>
+                  <button type="submit" class="btn btn-sm">Save comment</button>
+                </form>
+              </details>
+              {{end}}
+              {{if or (eq .AuthorID $root.User.ID) (atLeast $p.Role "admin")}}
+              <form method="post" action="/comments/{{.ID}}/delete" class="inline" data-confirm="Delete this comment? The deletion will be recorded in the task history.">
+                {{template "csrf" $root}}
+                <input type="hidden" name="return_to" value="{{$back}}">
+                <button type="submit" class="btn-link small text-danger">Delete</button>
+              </form>
+              {{end}}
+            </div>
+          </div>
+        </li>
+        {{else}}
+        <li class="empty small">No comments yet. Start the conversation below.</li>
+        {{end}}
+      </ul>
+      <form method="post" action="/tasks/{{$t.ID}}/comments" class="stack comment-form">
+        {{template "csrf" $root}}
+        <input type="hidden" name="return_to" value="{{$back}}">
+        <label for="new-comment">Add a comment <span class="hint">(posting as {{$root.User.Name}})</span></label>
+        <textarea id="new-comment" name="content" rows="3" required maxlength="5000" placeholder="Write a comment…"></textarea>
+        <button type="submit" class="btn btn-primary btn-sm">Comment</button>
+      </form>
+    </section>
+
+    <section>
+      <h3>History</h3>
+      <p class="muted small">Every change to this task, who made it, and when. This history cannot be edited.</p>
+      {{template "timeline" $d.Activity}}
+    </section>
+
+    {{if $d.CanDelete}}
+    <section class="danger-zone">
+      <form method="post" action="/tasks/{{$t.ID}}/delete" data-confirm="Delete “{{$t.Title}}”? This cannot be undone. The deletion will be recorded in the board's activity log.">
+        {{template "csrf" $root}}
+        <button type="submit" class="btn btn-danger btn-sm">Delete task</button>
+      </form>
+    </section>
+    {{end}}
+  </div>
+</aside>
+{{end}}

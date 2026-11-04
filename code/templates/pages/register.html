@@ -1,0 +1,24 @@
+{{define "content"}}
+<section class="auth-card">
+  <h1>Create your account</h1>
+  <p class="muted">It takes less than a minute.</p>
+  {{with .Data.Error}}<div class="form-error" role="alert">{{.}}</div>{{end}}
+  <form method="post" action="/register" class="stack">
+    {{template "csrf" .}}
+    <label>Full name
+      <input type="text" name="name" value="{{.Data.Name}}" required maxlength="100" autocomplete="name" autofocus>
+    </label>
+    <label>Email address
+      <input type="email" name="email" value="{{.Data.Email}}" required maxlength="254" autocomplete="email">
+    </label>
+    <label>Password <span class="hint">(at least 8 characters)</span>
+      <input type="password" name="password" required minlength="8" maxlength="72" autocomplete="new-password">
+    </label>
+    <label>Confirm password
+      <input type="password" name="password_confirm" required minlength="8" maxlength="72" autocomplete="new-password">
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Create account</button>
+  </form>
+  <p class="muted center">Already have an account? <a href="/login">Log in</a></p>
+</section>
+{{end}}

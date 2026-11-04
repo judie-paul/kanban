@@ -1,0 +1,56 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Your profile</h1>
+    <p class="muted">This is how teammates see you on boards, cards and activity timelines.</p>
+  </div>
+</div>
+<div class="grid-2">
+  <section class="panel">
+    <div class="profile-id">
+      <span class="avatar xl hue-{{avatarHue .Data.Profile.Name}}" aria-hidden="true">{{initials .Data.Profile.Name}}</span>
+      <div>
+        <h2>{{.Data.Profile.Name}}</h2>
+        <p class="muted">{{.Data.Profile.Email}}</p>
+        <p class="muted small">Member since {{date .Data.Profile.CreatedAt}}</p>
+      </div>
+    </div>
+    <dl class="stats">
+      <div><dt>Boards</dt><dd>{{.Data.BoardCount}}</dd></div>
+      <div><dt>Tasks posted</dt><dd>{{.Data.TaskCount}}</dd></div>
+      <div><dt>Open tasks assigned</dt><dd>{{.Data.Assigned}}</dd></div>
+    </dl>
+  </section>
+  <div class="stack">
+    <section class="panel">
+      <h2>Edit name</h2>
+      <form method="post" action="/profile" class="stack">
+        {{template "csrf" .}}
+        <label>Full name
+          <input type="text" name="name" value="{{.Data.Profile.Name}}" required maxlength="100">
+        </label>
+        <label>Email address <span class="hint">(cannot be changed)</span>
+          <input type="email" value="{{.Data.Profile.Email}}" disabled>
+        </label>
+        <button type="submit" class="btn btn-primary">Save</button>
+      </form>
+    </section>
+    <section class="panel">
+      <h2>Change password</h2>
+      <form method="post" action="/profile/password" class="stack">
+        {{template "csrf" .}}
+        <label>Current password
+          <input type="password" name="current_password" required autocomplete="current-password">
+        </label>
+        <label>New password <span class="hint">(at least 8 characters)</span>
+          <input type="password" name="new_password" required minlength="8" maxlength="72" autocomplete="new-password">
+        </label>
+        <label>Confirm new password
+          <input type="password" name="new_password_confirm" required minlength="8" maxlength="72" autocomplete="new-password">
+        </label>
+        <button type="submit" class="btn">Change password</button>
+      </form>
+    </section>
+  </div>
+</div>
+{{end}}

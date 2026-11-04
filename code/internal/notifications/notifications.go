@@ -9,7 +9,6 @@ import (
 	"errors"
 
 	"kanban/internal/apperr"
-
 	"kanban/internal/database"
 )
 

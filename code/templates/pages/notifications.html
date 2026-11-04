@@ -1,0 +1,48 @@
+{{define "content"}}
+<div class="page-head">
+  <div>
+    <h1>Notifications</h1>
+    <p class="muted">Assignments, comments on your tasks and changes to tasks you posted. Refresh the page to check for new ones.</p>
+  </div>
+  {{if .UnreadCount}}
+  <form method="post" action="/notifications/read-all">
+    {{template "csrf" .}}
+    <button type="submit" class="btn">Mark all as read</button>
+  </form>
+  {{end}}
+</div>
+{{if .Data}}
+<ul class="notif-list panel">
+  {{range .Data}}
+  <li class="notif{{if not .IsRead}} unread{{end}}">
+    {{template "avatar" .ActorName}}
+    <div class="notif-body">
+      <p><strong>{{.ActorName}}</strong> {{.Message}}</p>
+      {{template "time" .CreatedAt}}
+    </div>
+    <div class="notif-actions">
+      {{if or .TaskID.Valid .BoardID.Valid}}
+      <form method="post" action="/notifications/{{.ID}}/read" class="inline">
+        {{template "csrf" $}}
+        <input type="hidden" name="open" value="1">
+        <button type="submit" class="btn btn-sm">Open</button>
+      </form>
+      {{end}}
+      {{if not .IsRead}}
+      <form method="post" action="/notifications/{{.ID}}/read" class="inline">
+        {{template "csrf" $}}
+        <button type="submit" class="btn btn-sm btn-ghost">Mark read</button>
+      </form>
+      {{end}}
+    </div>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<div class="empty-state panel">
+  <p class="empty-icon" aria-hidden="true">🔔</p>
+  <h2>You're all caught up</h2>
+  <p class="muted">You'll be notified here when someone assigns you a task, comments on your tasks, or changes a task you posted.</p>
+</div>
+{{end}}
+{{end}}

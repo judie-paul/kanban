@@ -1,0 +1,19 @@
+{{define "content"}}
+<section class="auth-card">
+  <h1>Welcome back</h1>
+  <p class="muted">Log in to see your boards.</p>
+  {{with .Data.Error}}<div class="form-error" role="alert">{{.}}</div>{{end}}
+  <form method="post" action="/login" class="stack">
+    {{template "csrf" .}}
+    <input type="hidden" name="next" value="{{.Data.Next}}">
+    <label>Email address
+      <input type="email" name="email" value="{{.Data.Email}}" required autocomplete="email" autofocus>
+    </label>
+    <label>Password
+      <input type="password" name="password" required autocomplete="current-password">
+    </label>
+    <button type="submit" class="btn btn-primary btn-block">Log in</button>
+  </form>
+  <p class="muted center">New here? <a href="/register">Create an account</a></p>
+</section>
+{{end}}

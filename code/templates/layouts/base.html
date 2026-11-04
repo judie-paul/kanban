@@ -1,0 +1,53 @@
+{{define "base"}}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{.CSRFToken}}">
+  <title>{{.Title}} · Kanban</title>
+  <link rel="icon" href="/static/images/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/css/app.css">
+  <script src="/static/js/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="topbar">
+    <a class="brand" href="{{if .User}}/dashboard{{else}}/{{end}}">
+      <img src="/static/images/logo.svg" alt="" width="26" height="26"> <span>Kanban</span>
+    </a>
+    {{if .User}}
+    <nav class="topnav" aria-label="Main">
+      <a href="/dashboard" {{if eq .Path "/dashboard"}}aria-current="page"{{end}}>Dashboard</a>
+      <a href="/notifications" class="notif-link" {{if eq .Path "/notifications"}}aria-current="page"{{end}}>
+        Notifications{{if .UnreadCount}} <span class="badge" aria-label="{{.UnreadCount}} unread">{{.UnreadCount}}</span>{{end}}
+      </a>
+      <a href="/profile" class="me" title="Your profile">
+        <span class="avatar sm hue-{{avatarHue .User.Name}}">{{initials .User.Name}}</span>
+        <span class="me-name">{{.User.Name}}</span>
+      </a>
+      <form method="post" action="/logout" class="inline">
+        <input type="hidden" name="csrf_token" value="{{.CSRFToken}}">
+        <button type="submit" class="btn-link">Log out</button>
+      </form>
+    </nav>
+    {{else}}
+    <nav class="topnav" aria-label="Main">
+      <a href="/login">Log in</a>
+      <a href="/register" class="btn btn-primary btn-sm">Sign up</a>
+    </nav>
+    {{end}}
+  </header>
+
+  {{with .Flash}}
+  <div class="flash flash-{{.Kind}}" role="{{if eq .Kind "error"}}alert{{else}}status{{end}}">
+    <span>{{.Message}}</span>
+    <button type="button" class="flash-close" aria-label="Dismiss message" data-dismiss>×</button>
+  </div>
+  {{end}}
+
+  <main id="main">
+    {{template "content" .}}
+  </main>
+</body>
+</html>
+{{end}}

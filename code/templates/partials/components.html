@@ -1,0 +1,77 @@
+{{/* Small reusable pieces. */}}
+
+{{define "csrf"}}<input type="hidden" name="csrf_token" value="{{.CSRFToken}}">{{end}}
+
+{{define "avatar"}}<span class="avatar hue-{{avatarHue .}}" aria-hidden="true">{{initials .}}</span>{{end}}
+
+{{define "person"}}<span class="person">{{template "avatar" .}}<span class="person-name">{{.}}</span></span>{{end}}
+
+{{define "time"}}<time datetime="{{iso .}}" data-local>{{datetime .}}</time>{{end}}
+
+{{define "priority"}}<span class="priority p-{{.}}" title="Priority: {{.Label}}">{{.Label}}</span>{{end}}
+
+{{define "label"}}<span class="label lc-{{.Color}}">{{.Name}}</span>{{end}}
+
+{{define "due"}}
+  {{- if .DueDate -}}
+  <span class="due{{if .IsOverdue}} overdue{{else if .IsDueSoon}} soon{{end}}" title="Due date">
+    📅 {{dueDate .DueDate}}{{if .IsOverdue}} · overdue{{end}}
+  </span>
+  {{- end -}}
+{{end}}
+
+{{/* A task card on the Kanban board. Expects dict "Task", "URL", "Drag". */}}
+{{define "task_card"}}
+{{$t := .Task}}
+<li class="card" data-task-id="{{$t.ID}}" {{if .Drag}}draggable="true"{{end}}>
+  <a class="card-link" href="{{.URL}}">
+    <div class="card-top">
+      {{template "priority" $t.Priority}}
+      {{if $t.ColumnIsDone}}<span class="done-tick" title="Completed">✓ Done</span>{{end}}
+    </div>
+    <h3 class="card-title">{{$t.Title}}</h3>
+    {{if $t.Labels}}<div class="labels">{{range $t.Labels}}{{template "label" .}}{{end}}</div>{{end}}
+    <dl class="card-meta">
+      <div><dt>Posted by</dt><dd>{{template "person" $t.CreatorName}}</dd></div>
+      <div><dt>Assignee</dt><dd>{{if $t.AssigneeName}}{{template "person" $t.AssigneeName}}{{else}}<span class="muted">Unassigned</span>{{end}}</dd></div>
+    </dl>
+    <div class="card-foot">
+      {{template "due" $t}}
+      {{if $t.CommentCount}}<span class="comments-count" title="{{plural $t.CommentCount "comment"}}">💬 {{$t.CommentCount}}</span>{{end}}
+    </div>
+  </a>
+</li>
+{{end}}
+
+{{/* A compact task row for dashboard lists. */}}
+{{define "task_row"}}
+<li class="task-row">
+  <a href="/tasks/{{.ID}}">
+    <span class="task-row-main">
+      <strong>{{.Title}}</strong>
+      <span class="muted small">{{.BoardName}} · {{.ColumnName}} · posted by {{.CreatorName}}{{if .AssigneeName}} · assigned to {{.AssigneeName}}{{end}}</span>
+    </span>
+    <span class="task-row-side">
+      {{template "priority" .Priority}}
+      {{template "due" .}}
+    </span>
+  </a>
+</li>
+{{end}}
+
+{{/* Activity timeline. Expects a slice of activity.Item. */}}
+{{define "timeline"}}
+<ol class="timeline">
+  {{range .}}
+  <li class="tl-item tl-{{.Action}}">
+    <span class="tl-icon" aria-hidden="true">{{activityIcon .Action}}</span>
+    <div class="tl-body">
+      <p><strong>{{.UserName}}</strong> {{.Description}}</p>
+      {{template "time" .CreatedAt}}
+    </div>
+  </li>
+  {{else}}
+  <li class="empty small">No activity yet.</li>
+  {{end}}
+</ol>
+{{end}}
