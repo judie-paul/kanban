@@ -225,8 +225,8 @@ func queryTasks(ctx context.Context, q database.DBTX, query string, args ...any)
 	return out, rows.Err()
 }
 
-// load returns a task without permission checks.
-func load(ctx context.Context, q database.DBTX, taskID int64) (Task, error) {
+// Load returns a task without permission checks; callers must verify access.
+func Load(ctx context.Context, q database.DBTX, taskID int64) (Task, error) {
 	t, err := scanTask(q.QueryRowContext(ctx, selectTask+` WHERE t.id = ?`, taskID))
 	if errors.Is(err, sql.ErrNoRows) {
 		return Task{}, apperr.ErrNotFound
@@ -291,7 +291,7 @@ func attachLabels(ctx context.Context, q database.DBTX, ts []Task) error {
 
 // Get returns a task and the actor's role on its board.
 func (s *Service) Get(ctx context.Context, actorID, taskID int64) (Task, boards.Role, error) {
-	t, err := load(ctx, s.DB, taskID)
+	t, err := Load(ctx, s.DB, taskID)
 	if err != nil {
 		return Task{}, "", err
 	}
@@ -481,7 +481,7 @@ func (s *Service) Create(ctx context.Context, actorID, boardID int64, in Input) 
 	if err != nil {
 		return Task{}, err
 	}
-	return load(ctx, s.DB, id)
+	return Load(ctx, s.DB, id)
 }
 
 // Update edits a task's fields. Each changed field produces its own activity
@@ -489,7 +489,7 @@ func (s *Service) Create(ctx context.Context, actorID, boardID int64, in Input) 
 // with Move, not Update.
 func (s *Service) Update(ctx context.Context, actorID, taskID int64, in Input) (Task, error) {
 	err := database.WithTx(ctx, s.DB, func(tx *sql.Tx) error {
-		old, err := load(ctx, tx, taskID)
+		old, err := Load(ctx, tx, taskID)
 		if err != nil {
 			return err
 		}
@@ -622,7 +622,7 @@ func (s *Service) Update(ctx context.Context, actorID, taskID int64, in Input) (
 	if err != nil {
 		return Task{}, err
 	}
-	return load(ctx, s.DB, taskID)
+	return Load(ctx, s.DB, taskID)
 }
 
 // Move places a task in a column at a zero-based position. Positions in
@@ -630,7 +630,7 @@ func (s *Service) Update(ctx context.Context, actorID, taskID int64, in Input) (
 // the task completed; moving out of one reopens it.
 func (s *Service) Move(ctx context.Context, actorID, taskID, toColumnID int64, toPos int) (Task, error) {
 	err := database.WithTx(ctx, s.DB, func(tx *sql.Tx) error {
-		t, err := load(ctx, tx, taskID)
+		t, err := Load(ctx, tx, taskID)
 		if err != nil {
 			return err
 		}
@@ -649,7 +649,7 @@ func (s *Service) Move(ctx context.Context, actorID, taskID, toColumnID int64, t
 	if err != nil {
 		return Task{}, err
 	}
-	return load(ctx, s.DB, taskID)
+	return Load(ctx, s.DB, taskID)
 }
 
 // moveTask does the position bookkeeping and auditing for a move. `reason`
@@ -747,7 +747,7 @@ func moveTask(ctx context.Context, tx *sql.Tx, actorID int64, t Task, from, to b
 // A "task deleted" entry is kept in the board's activity log.
 func (s *Service) Delete(ctx context.Context, actorID, taskID int64) error {
 	return database.WithTx(ctx, s.DB, func(tx *sql.Tx) error {
-		t, err := load(ctx, tx, taskID)
+		t, err := Load(ctx, tx, taskID)
 		if err != nil {
 			return err
 		}

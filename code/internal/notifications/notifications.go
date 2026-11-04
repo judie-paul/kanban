@@ -6,6 +6,9 @@ package notifications
 import (
 	"context"
 	"database/sql"
+	"errors"
+
+	"kanban/internal/apperr"
 
 	"kanban/internal/database"
 )
@@ -110,6 +113,9 @@ func (s *Service) MarkRead(ctx context.Context, userID, id int64) (Notification,
 	err := s.DB.QueryRowContext(ctx,
 		`SELECT id, task_id, board_id, message, is_read FROM notifications WHERE id = ? AND recipient_id = ?`, id, userID).
 		Scan(&n.ID, &n.TaskID, &n.BoardID, &n.Message, &n.IsRead)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Notification{}, apperr.ErrNotFound
+	}
 	return n, err
 }
 
