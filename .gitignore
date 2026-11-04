@@ -1,0 +1,15 @@
+# Local databases created when running the app
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+*.test
+*.out
