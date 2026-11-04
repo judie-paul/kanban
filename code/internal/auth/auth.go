@@ -190,3 +190,25 @@ func hashToken(token string) string {
 	sum := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(sum[:])
 }
+
+// ResetPassword sets a new password for the account with the given email
+// and signs it out everywhere. It is used by the operator command
+// `kanban -reset-password <email>` (there is no email-based reset flow).
+func (s *Service) ResetPassword(ctx context.Context, email, password string) error {
+	u, err := s.Users.GetByEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+	if err := ValidatePassword(password); err != nil {
+		return err
+	}
+	hash, err := s.HashPassword(password)
+	if err != nil {
+		return err
+	}
+	if err := s.Users.UpdatePasswordHash(ctx, u.ID, hash); err != nil {
+		return err
+	}
+	_, err = s.DB.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, u.ID)
+	return err
+}

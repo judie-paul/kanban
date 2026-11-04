@@ -556,3 +556,24 @@ func assertPositions(t *testing.T, f fixture, columnID int64, ids ...int64) {
 		t.Fatalf("column has %d tasks, want %d", i, len(ids))
 	}
 }
+
+func TestDeleteBoardWithTasksCascades(t *testing.T) {
+	ctx := context.Background()
+	f := setup(t)
+	task := f.create(t, f.alice.ID, 1, "Will vanish")
+	in := inputFrom(task)
+	in.AssigneeID = f.bob.ID
+	if _, err := f.tasks.Update(ctx, f.alice.ID, task.ID, in); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.boards.Delete(ctx, f.alice.ID, f.board.ID); err != nil {
+		t.Fatalf("delete board with tasks: %v", err)
+	}
+	for _, table := range []string{"tasks", "columns", "task_activities", "board_members", "notifications"} {
+		var n int
+		f.db.QueryRow(`SELECT COUNT(*) FROM ` + table).Scan(&n)
+		if n != 0 {
+			t.Errorf("%s still has %d rows after board deletion", table, n)
+		}
+	}
+}

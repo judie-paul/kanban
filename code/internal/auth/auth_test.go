@@ -157,3 +157,22 @@ func TestChangePasswordRevokesOtherSessions(t *testing.T) {
 		t.Fatal("new password does not work")
 	}
 }
+
+func TestResetPassword(t *testing.T) {
+	ctx := context.Background()
+	s := newService(t)
+	u, _ := s.Register(ctx, "Alice", "alice@example.com", "password1")
+	token, _, _ := s.CreateSession(ctx, u.ID)
+	if err := s.ResetPassword(ctx, "nobody@example.com", "whatever123"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("unknown email: %v", err)
+	}
+	if err := s.ResetPassword(ctx, "ALICE@example.com", "brand-new-pass"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Authenticate(ctx, "alice@example.com", "brand-new-pass"); err != nil {
+		t.Fatal("new password rejected")
+	}
+	if _, err := s.UserForSession(ctx, token); err == nil {
+		t.Fatal("sessions should be revoked after a reset")
+	}
+}

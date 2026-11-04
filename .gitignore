@@ -13,3 +13,11 @@ Thumbs.db
 # Test artifacts
 *.test
 *.out
+
+# Only the most common prebuilt binaries are committed (see README);
+# the rest can be produced with `build.sh all` / `build.ps1 all`.
+build/kanban-windows-arm64.exe
+build/kanban-linux-arm64
+build/kanban-darwin-amd64
+build/kanban
+build/kanban.exe

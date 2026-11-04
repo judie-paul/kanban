@@ -3,13 +3,16 @@
 // Usage:
 //
 //	kanban [-addr :8080] [-db kanban.db] [-secure-cookies] [-log-format text|json]
+//	kanban -db kanban.db -reset-password user@example.com   (reads the new password from stdin)
 //
 // Every flag can also be set with an environment variable (KANBAN_ADDR,
 // KANBAN_DB, KANBAN_SECURE_COOKIES, KANBAN_LOG_FORMAT).
 package main
 
 import (
+	"bufio"
 	"context"
+	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,11 +21,15 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
 	kanban "kanban"
+	"kanban/internal/apperr"
+	"kanban/internal/auth"
 	"kanban/internal/database"
+	"kanban/internal/users"
 	"kanban/internal/web"
 )
 
@@ -50,6 +57,7 @@ func run() error {
 	secure := flag.Bool("secure-cookies", secureDefault, "mark cookies Secure (enable when serving over HTTPS)")
 	logFormat := flag.String("log-format", env("KANBAN_LOG_FORMAT", "text"), "log format: text or json")
 	showVersion := flag.Bool("version", false, "print the version and exit")
+	resetEmail := flag.String("reset-password", "", "set a new password for this email (read from stdin) and exit")
 	flag.Parse()
 
 	if *showVersion {
@@ -75,6 +83,10 @@ func run() error {
 
 	if err := database.Migrate(ctx, db, kanban.Migrations, logger); err != nil {
 		return err
+	}
+
+	if *resetEmail != "" {
+		return resetPassword(ctx, db, *resetEmail)
 	}
 
 	app, err := web.New(web.Config{
@@ -136,5 +148,24 @@ func run() error {
 			return err
 		}
 	}
+	return nil
+}
+
+// resetPassword is an operator command for users who forgot their password.
+func resetPassword(ctx context.Context, db *sql.DB, email string) error {
+	fmt.Fprintf(os.Stderr, "New password for %s: ", email)
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && line == "" {
+		return fmt.Errorf("read password: %w", err)
+	}
+	password := strings.TrimRight(line, "\r\n")
+	a := auth.NewService(db, &users.Service{DB: db})
+	if err := a.ResetPassword(ctx, email, password); err != nil {
+		if errors.Is(err, apperr.ErrNotFound) {
+			return fmt.Errorf("no user with email %q", email)
+		}
+		return err
+	}
+	fmt.Fprintln(os.Stderr, "Password updated. The user has been signed out everywhere.")
 	return nil
 }
